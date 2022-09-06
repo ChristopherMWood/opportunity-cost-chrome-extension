@@ -1,15 +1,23 @@
+const parseYouTubeVideoId = (url) => {
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match&&match[7].length==11)? match[7] : false;
+}
+
 document.addEventListener("DOMContentLoaded", function(event) {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        var activeTab = tabs[0];
-        var activeTabId = activeTab.id;
-
-        if (isYouTubeURL(activeTab.url)) {
+        const activeTab = tabs[0];
+        const videoId = parseYouTubeVideoId(activeTab.url);
+        if (videoId) {
             document.getElementById("content").style.display = "block";
-            const videoId = getVideoIdFromUrl(activeTab.url);
 
             chrome.storage.local.get([videoId], function(result) {
-                setValuesInUI(result[videoId].data);
-                document.getElementById("site_link").href = "https://opportunitycost.life?v=" + videoId;
+                const loadedData = result[videoId];
+
+                if (loadedData) {
+                    setValuesInUI(loadedData);
+                    document.getElementById("site_link").href = "https://opportunitycost.life?v=" + videoId;
+                }
             });
         } else {
             document.getElementById("no-content").style.display = "block";
@@ -22,16 +30,16 @@ function roundUp(num, precision) {
     return Math.ceil(num * precision) / precision;
 }
 
-function getLivesLost(data) {
+function getLivesLost(opportunitycost) {
     const averageLifeSpanInYears = 73.2;
-    const yearsWatched = data.totalSeconds/31557600
+    const yearsWatched = opportunitycost/31557600
     const averageLivesLost =  yearsWatched/averageLifeSpanInYears;
     const precision = averageLivesLost > 1 ? 2 : 4;
     return roundUp(averageLivesLost, precision);
 }
 
-function getYearsLostString(data) {
-    const yearsWatched = data.totalSeconds/31557600
+function getYearsLostString(opportunitycost) {
+    const yearsWatched = opportunitycost/31557600
 
     if (yearsWatched > 1000) {
         return getShortFormatString(yearsWatched);
@@ -39,29 +47,6 @@ function getYearsLostString(data) {
 
     const precision = yearsWatched > 1 ? 2 : 4;
     return String(roundUp(yearsWatched, precision));
-}
-
-function getCollegeEducationsString(data) {
-    const yearsWatched = data.totalSeconds/31557600;
-    const collegeEducations = yearsWatched/4;
-
-    if (collegeEducations > 1000) {
-        return getShortFormatString(collegeEducations);
-    }
-
-    const precision = collegeEducations > 1 ? 2 : 4;
-    return String(roundUp(collegeEducations, precision));
-}
-
-function getWeekendsString(data) {
-    const weekendsWatched = data.totalSeconds/(86400 * 2);
-
-    if (weekendsWatched > 1000) {
-        return getShortFormatString(weekendsWatched);
-    }
-
-    const precision = weekendsWatched > 1 ? 2 : 4;
-    return String(roundUp(weekendsWatched, precision));
 }
 
 function getShortFormatString(value) {
@@ -79,54 +64,7 @@ function getShortFormatString(value) {
 }
 
 function setValuesInUI(data) {
-    document.getElementById("lives-spent-digit").innerHTML = getLivesLost(data);
-    document.getElementById("years-spent-digit").innerHTML = getYearsLostString(data);
-    document.getElementById("college-educations-spent-digit").innerHTML = getCollegeEducationsString(data);
-    document.getElementById("weekends-spent-digit").innerHTML = getWeekendsString(data);
-}
-
-const YouTubeUrlFormatOne = /^https?:\/\/(?:youtu\.be|(?:www\.)?youtube\.com\/embed)\/([\w\-]+)/;
-const YouTubeUrlFormatTwo = /^https?:\/\/(?:[\w\-]+\.)*youtube\.com\/(watch|attribution_link)\?([^\#]+)/;
-
-function isYouTubeURL(url) {
-    return url.match(YouTubeUrlFormatOne) || url.match(YouTubeUrlFormatTwo);
-}
-
-function getQueryData(queryString) {
-    var queryData = Object.create(null);
-
-    queryString.split("&").some(function (qpair) {
-        qpair = qpair.split("=").map(decodeURIComponent);
-        queryData[qpair[0]] = qpair[1];
-    });
-
-    return queryData;
-}
-
-function getVideoIdFromUrl(url) {
-    if (url.match(YouTubeUrlFormatOne)) {
-        return RegExp.$1;
-    }
-
-    if (url.match(YouTubeUrlFormatTwo)) {
-        var page = RegExp.$1;
-        var qs = RegExp.$2;
-
-        switch (page) {
-            case "watch":
-                var q = getQueryData(qs);
-                return q.v;
-                break;
-            case "attribution_link":
-                var q1 = getQueryData(qs);
-
-                if (q1.u) {
-                    if (q1.u.match(/^\/watch\?([^\#]+)/)) {
-                        var q2 = getQueryData(RegExp.$1);
-                        return q2.v
-                    }
-                }
-                break;
-        }
-    }
+    const opportunitycost = data.data.videoMeta.opportunityCost;
+    document.getElementById("lives-spent-digit").innerHTML = getLivesLost(opportunitycost);
+    document.getElementById("years-spent-digit").innerHTML = getYearsLostString(opportunitycost);
 }

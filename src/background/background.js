@@ -1,38 +1,31 @@
-chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-  const url = tab.url; //TODO: make sure URL is present and not pending as future change
+chrome.tabs.onUpdated.addListener(function (_tabId, changeInfo, tab) {
+  const url = tab.url;
+  const videoId = parseYouTubeVideoId(url);
 
-  if (isYouTubeURL(url) && changeInfo.status == 'complete' && tab.active) {
-      const videoId = getVideoIdFromUrl(url);
+  if (videoId && changeInfo.status === 'complete' && tab.active) {
+    getOpportunityCost(videoId, (data) => {
+      const storageData = {
+        data: data,
+        cacheExpiration: getCacheExpirationTime(5)
+      };
 
-      if (videoId !== null && videoId !== undefined) {
-        //CHECK IF CACHED and IF NOT EXPIRED
-        const requestData = true;
-
-        if (requestData) {
-          getOpportunityCost(videoId, (data) => {
-            const storageData = {
-              data: data,
-              cacheExpiration: getCacheExpirationTime(5)
-            };
-
-            chrome.storage.local.set({[videoId]: storageData}, function() {
-              console.log(storageData);
-            });
-          });
-        }
-      }
+      chrome.storage.local.set({[videoId]: storageData}, function() {
+        console.log('video Id: ' + videoId + ' stored');
+        console.log(storageData);
+      });
+    });
   }
 })
 
-function getCacheExpirationTime(minutes) {
-  var currentDate = new Date();
-  var currentDateSeconds = currentDate.getTime();
-  var expirationMinutes = 60 * minutes;
+const getCacheExpirationTime = (minutes) => {
+  const currentDate = new Date();
+  const currentDateSeconds = currentDate.getTime();
+  const expirationMinutes = 60 * minutes;
   return new Date(currentDateSeconds + expirationMinutes);
 }
 
-function getOpportunityCost(videoId, callback) {
-  const url = 'https://christopherwood.dev/api/opportunitycost/' + videoId;
+const getOpportunityCost = (videoId, callback) => {
+  const url = 'https://api.christopherwood.dev/api/opportunitycost/' + videoId;
 
   fetch(url).then(function (response) {
       response.json().then((json) => {
@@ -43,48 +36,8 @@ function getOpportunityCost(videoId, callback) {
   });
 }
 
-const YouTubeUrlFormatOne = /^https?:\/\/(?:youtu\.be|(?:www\.)?youtube\.com\/embed)\/([\w\-]+)/;
-const YouTubeUrlFormatTwo = /^https?:\/\/(?:[\w\-]+\.)*youtube\.com\/(watch|attribution_link)\?([^\#]+)/;
-
-function isYouTubeURL(url) {
-    return url.match(YouTubeUrlFormatOne) || url.match(YouTubeUrlFormatTwo);
-}
-
-function getQueryData(queryString) {
-    var queryData = Object.create(null);
-
-    queryString.split("&").some(function (qpair) {
-        qpair = qpair.split("=").map(decodeURIComponent);
-        queryData[qpair[0]] = qpair[1];
-    });
-
-    return queryData;
-}
-
-function getVideoIdFromUrl(url) {
-    if (url.match(YouTubeUrlFormatOne)) {
-        return RegExp.$1;
-    }
-
-    if (url.match(YouTubeUrlFormatTwo)) {
-        var page = RegExp.$1;
-        var qs = RegExp.$2;
-
-        switch (page) {
-            case "watch":
-                var q = getQueryData(qs);
-                return q.v;
-                break;
-            case "attribution_link":
-                var q1 = getQueryData(qs);
-
-                if (q1.u) {
-                    if (q1.u.match(/^\/watch\?([^\#]+)/)) {
-                        var q2 = getQueryData(RegExp.$1);
-                        return q2.v
-                    }
-                }
-                break;
-        }
-    }
+const parseYouTubeVideoId = (url) => {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match&&match[7].length==11)? match[7] : false;
 }
