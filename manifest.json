@@ -1,6 +1,6 @@
 {
   "name": "Youtube Opportunity Cost",
-  "description": "Calculates all of the lives wasted watching the YouTube video you are currently viewing in the browser.",
+  "description": "Calculates the combined time spent watching any video on YouTube.",
   "version": "1.0",
   "manifest_version": 3,
   "icons": {
@@ -16,10 +16,6 @@
   "background": {
     "service_worker": "/src/background/background.js"
   },
-  "content_scripts": [{
-		"matches": [ "*://*.youtube.com/*" ],
-    "js": ["/src/action/index.js"]
-	}],
   "permissions": [
     "storage",
     "tabs"
